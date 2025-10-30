@@ -8,6 +8,7 @@ import { getCountryByCode, formatCurrency } from "@/lib/countries";
 import { getServiceBranding } from "@/lib/serviceLogos";
 import { gccShippingServices } from "@/lib/gccShippingServices";
 import SEOHead from "@/components/SEOHead";
+import ServiceBadge from "@/components/ServiceBadge";
 import {
   MapPin,
   Users,
@@ -18,6 +19,8 @@ import {
   Package,
   Truck,
   Hash,
+  BadgeCheck,
+  Award,
 } from "lucide-react";
 
 const Microsite = () => {
@@ -95,12 +98,22 @@ const Microsite = () => {
       <div className="min-h-screen py-12 bg-gradient-to-b from-background to-secondary/20" dir="rtl">
       <div className="container mx-auto px-4">
         <div className="max-w-4xl mx-auto">
-          {/* Header Badge */}
-          <div className="text-center mb-8">
-            <Badge className="text-lg px-6 py-2 bg-gradient-primary">
+          {/* Header Badges */}
+          <div className="text-center mb-8 space-y-4">
+            <Badge className="text-lg px-6 py-2 bg-gradient-primary shadow-lg">
               <Shield className="w-4 h-4 ml-2" />
               <span>عقد موثّق ومحمي</span>
             </Badge>
+            
+            {isShipping && (
+              <div className="flex justify-center">
+                <ServiceBadge 
+                  serviceKey={serviceKey}
+                  serviceName={serviceName}
+                  size="lg"
+                />
+              </div>
+            )}
           </div>
           
           {/* Main Card */}
@@ -140,14 +153,37 @@ const Microsite = () => {
                 </div>
               )}
               
-              {/* Service Info for Shipping */}
+              {/* Service Info for Shipping - Enhanced */}
               {isShipping && (
-                <div className="mb-6 p-4 bg-secondary/20 rounded-lg border">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Package className="w-5 h-5 text-primary" />
-                    <h3 className="font-bold text-lg">{serviceName}</h3>
+                <div 
+                  className="mb-6 p-4 rounded-lg border-2 relative overflow-hidden"
+                  style={{
+                    borderColor: serviceBranding.colors.primary,
+                    background: `linear-gradient(135deg, ${serviceBranding.colors.primary}10, ${serviceBranding.colors.secondary}10)`
+                  }}
+                >
+                  {/* Background Pattern */}
+                  <div 
+                    className="absolute inset-0 opacity-5"
+                    style={{
+                      backgroundImage: `repeating-linear-gradient(45deg, ${serviceBranding.colors.primary} 0, ${serviceBranding.colors.primary} 1px, transparent 0, transparent 50%)`,
+                      backgroundSize: '10px 10px'
+                    }}
+                  />
+                  
+                  <div className="relative z-10">
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <div className="flex items-center gap-3">
+                        <Package className="w-5 h-5" style={{ color: serviceBranding.colors.primary }} />
+                        <h3 className="font-bold text-lg">{serviceName}</h3>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <BadgeCheck className="w-5 h-5" style={{ color: serviceBranding.colors.secondary }} />
+                        <span className="text-xs font-bold" style={{ color: serviceBranding.colors.secondary }}>موثّق</span>
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{serviceDescription}</p>
                   </div>
-                  <p className="text-sm text-muted-foreground">{serviceDescription}</p>
                 </div>
               )}
               
