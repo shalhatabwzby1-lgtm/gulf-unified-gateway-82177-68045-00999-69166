@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { localStorageDB } from "@/lib/localStorage";
 
 // Types from database
 export interface Chalet {
@@ -55,47 +55,30 @@ export interface Payment {
   created_at: string;
 }
 
-// Fetch chalets by country
+// Fetch chalets by country - Using Local Storage (No API required)
 export const useChalets = (countryCode?: string) => {
   return useQuery({
     queryKey: ["chalets", countryCode],
     queryFn: async () => {
-      let query = (supabase as any).from("chalets").select("*");
-      
-      if (countryCode) {
-        query = query.eq("country_code", countryCode);
-      }
-      
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      return data as Chalet[];
+      return await localStorageDB.getChalets(countryCode);
     },
     enabled: !!countryCode,
   });
 };
 
-// Fetch shipping carriers by country
+// Fetch shipping carriers by country - Not needed with local data
 export const useShippingCarriers = (countryCode?: string) => {
   return useQuery({
     queryKey: ["carriers", countryCode],
     queryFn: async () => {
-      let query = (supabase as any).from("shipping_carriers").select("*");
-      
-      if (countryCode) {
-        query = query.eq("country_code", countryCode);
-      }
-      
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      return data as ShippingCarrier[];
+      // Return empty array - we use gccShippingServices instead
+      return [] as ShippingCarrier[];
     },
-    enabled: !!countryCode,
+    enabled: false, // Disabled - not needed
   });
 };
 
-// Create link
+// Create link - Using Local Storage (No API required)
 export const useCreateLink = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -107,32 +90,7 @@ export const useCreateLink = () => {
       provider_id?: string;
       payload: any;
     }) => {
-      const linkId = crypto.randomUUID();
-      const micrositeUrl = `${window.location.origin}/r/${linkData.country_code}/${linkData.type}/${linkId}`;
-      const paymentUrl = `${window.location.origin}/pay/${linkId}`;
-      
-      // Simple signature (in production, use HMAC)
-      // Use encodeURIComponent to handle Arabic and other Unicode characters
-      const signature = btoa(encodeURIComponent(JSON.stringify(linkData.payload)));
-      
-      const { data, error } = await (supabase as any)
-        .from("links")
-        .insert({
-          id: linkId,
-          type: linkData.type,
-          country_code: linkData.country_code,
-          provider_id: linkData.provider_id,
-          payload: linkData.payload,
-          microsite_url: micrositeUrl,
-          payment_url: paymentUrl,
-          signature,
-          status: "active",
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data as Link;
+      return await localStorageDB.createLink(linkData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["links"] });
@@ -151,25 +109,18 @@ export const useCreateLink = () => {
   });
 };
 
-// Fetch link by ID
+// Fetch link by ID - Using Local Storage (No API required)
 export const useLink = (linkId?: string) => {
   return useQuery({
     queryKey: ["link", linkId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("links")
-        .select("*")
-        .eq("id", linkId!)
-        .single();
-      
-      if (error) throw error;
-      return data as Link;
+      return await localStorageDB.getLink(linkId!);
     },
     enabled: !!linkId,
   });
 };
 
-// Create payment
+// Create payment - Using Local Storage (No API required)
 export const useCreatePayment = () => {
   const { toast } = useToast();
   
@@ -179,22 +130,7 @@ export const useCreatePayment = () => {
       amount: number;
       currency: string;
     }) => {
-      // Generate OTP (4 digits)
-      const otp = Math.floor(1000 + Math.random() * 9000).toString();
-      
-      const { data, error } = await (supabase as any)
-        .from("payments")
-        .insert({
-          ...paymentData,
-          otp,
-          status: "pending",
-          attempts: 0,
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data as Payment;
+      return await localStorageDB.createPayment(paymentData);
     },
     onError: (error: any) => {
       toast({
@@ -206,26 +142,19 @@ export const useCreatePayment = () => {
   });
 };
 
-// Fetch payment by ID
+// Fetch payment by ID - Using Local Storage (No API required)
 export const usePayment = (paymentId?: string) => {
   return useQuery({
     queryKey: ["payment", paymentId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("payments")
-        .select("*")
-        .eq("id", paymentId!)
-        .single();
-      
-      if (error) throw error;
-      return data as Payment;
+      return await localStorageDB.getPayment(paymentId!);
     },
     enabled: !!paymentId,
     refetchInterval: 2000, // Refresh every 2 seconds for OTP status
   });
 };
 
-// Update payment (for OTP verification)
+// Update payment (for OTP verification) - Using Local Storage (No API required)
 export const useUpdatePayment = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -238,15 +167,7 @@ export const useUpdatePayment = () => {
       paymentId: string;
       updates: Partial<Payment>;
     }) => {
-      const { data, error } = await (supabase as any)
-        .from("payments")
-        .update(updates)
-        .eq("id", paymentId)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data as Payment;
+      return await localStorageDB.updatePayment(paymentId, updates);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payment"] });
