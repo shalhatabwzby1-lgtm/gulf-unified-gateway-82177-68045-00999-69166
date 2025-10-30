@@ -1,22 +1,15 @@
 [build]
   publish = "dist"
   command = "npm run build"
+  functions = "netlify/functions"
 
-[[redirects]]
-  from = "/r/*"
-  to = "/.netlify/functions/microsite-meta"
-  status = 200
-
-[[redirects]]
-  from = "/pay/*"
-  to = "/.netlify/functions/microsite-meta"
-  status = 200
-
+# SPA Routing - All routes serve index.html
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
 
+# Security Headers
 [[headers]]
   for = "/*"
   [headers.values]
@@ -24,6 +17,29 @@
     X-Content-Type-Options = "nosniff"
     X-XSS-Protection = "1; mode=block"
     Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+
+# Cache Control for Static Assets
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Cache Control for Images
+[[headers]]
+  for = "/*.jpg"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.svg"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
 
 # Netlify Forms Configuration
 # Email notifications will be sent to the email configured in Netlify dashboard
