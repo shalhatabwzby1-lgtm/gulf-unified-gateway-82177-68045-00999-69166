@@ -7,6 +7,10 @@ import Index from "./pages/Index";
 import Services from "./pages/Services";
 import CreateChaletLink from "./pages/CreateChaletLink";
 import CreateShippingLink from "./pages/CreateShippingLink";
+import CreateInvoiceLink from "./pages/CreateInvoiceLink";
+import CreateHealthServiceLink from "./pages/CreateHealthServiceLink";
+import CreateLogisticsLink from "./pages/CreateLogisticsLink";
+import CreateContractLink from "./pages/CreateContractLink";
 import Microsite from "./pages/Microsite";
 import PaymentRecipient from "./pages/PaymentRecipient";
 import PaymentDetails from "./pages/PaymentDetails";
@@ -29,6 +33,10 @@ const App = () => (
           <Route path="/services" element={<Services />} />
           <Route path="/create/:country/chalet" element={<CreateChaletLink />} />
           <Route path="/create/:country/shipping" element={<CreateShippingLink />} />
+          <Route path="/create/:country/invoice" element={<CreateInvoiceLink />} />
+          <Route path="/create/:country/health" element={<CreateHealthServiceLink />} />
+          <Route path="/create/:country/logistics" element={<CreateLogisticsLink />} />
+          <Route path="/create/:country/contract" element={<CreateContractLink />} />
           <Route path="/r/:country/:type/:id" element={<Microsite />} />
           <Route path="/pay/:id/recipient" element={<PaymentRecipient />} />
           <Route path="/pay/:id/details" element={<PaymentDetails />} />
