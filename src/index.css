@@ -83,7 +83,29 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: 'cv11', 'ss01';
-    font-family: 'Almarai', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: 'Almarai', 'Tajawal', 'Cairo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-optical-sizing: auto;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Professional Typography for Payment Pages */
+  .font-receipt {
+    font-family: 'Courier New', 'Courier', monospace;
+    letter-spacing: 0.025em;
+  }
+
+  .font-official {
+    font-family: 'Tajawal', 'Cairo', 'Almarai', sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  /* Enhanced Number Display for Amounts */
+  .font-mono-numbers {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' on, 'lnum' on;
   }
 
   /* RTL Support */
@@ -110,6 +132,40 @@ All colors MUST be HSL.
 
   .animate-pulse-glow {
     animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  /* Official Stamp Animation */
+  @keyframes stamp-appear {
+    0% { 
+      opacity: 0; 
+      transform: scale(0.8) rotate(-20deg); 
+    }
+    60% { 
+      transform: scale(1.1) rotate(-15deg); 
+    }
+    100% { 
+      opacity: 1; 
+      transform: scale(1) rotate(-15deg); 
+    }
+  }
+
+  .animate-stamp {
+    animation: stamp-appear 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  /* Fade in animation */
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.5s ease-out;
   }
 
   /* Scrollbar */

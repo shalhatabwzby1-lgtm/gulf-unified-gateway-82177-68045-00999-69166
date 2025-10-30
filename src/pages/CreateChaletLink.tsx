@@ -13,8 +13,9 @@ import {
 } from "@/components/ui/select";
 import { getCountryByCode, formatCurrency } from "@/lib/countries";
 import { useChalets, useCreateLink } from "@/hooks/useSupabase";
-import { ArrowRight, Home, Copy, Check } from "lucide-react";
+import { ArrowRight, Home, Copy, Check, ExternalLink, CreditCard, LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const CreateChaletLink = () => {
   const { country } = useParams<{ country: string }>();
@@ -30,6 +31,7 @@ const CreateChaletLink = () => {
   const [nights, setNights] = useState<number>(1);
   const [guestCount, setGuestCount] = useState<number>(2);
   const [createdLink, setCreatedLink] = useState<string | null>(null);
+  const [linkType, setLinkType] = useState<"card" | "login">("card");
   const [copied, setCopied] = useState(false);
   
   const selectedChalet = chalets?.find((c) => c.id === selectedChaletId);
@@ -62,10 +64,47 @@ const CreateChaletLink = () => {
         payload,
       });
       
-      setCreatedLink(link.microsite_url);
+      // Generate link based on type
+      const baseUrl = link.microsite_url;
+      const finalLink = linkType === "login" 
+        ? `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}type=login` 
+        : baseUrl;
+      
+      setCreatedLink(finalLink);
+      
+      toast({
+        title: "تم إنشاء الرابط بنجاح!",
+        description: "يمكنك الآن نسخ الرابط أو معاينته",
+      });
     } catch (error) {
       console.error("Error creating link:", error);
+      toast({
+        title: "خطأ",
+        description: "حدث خطأ أثناء إنشاء الرابط",
+        variant: "destructive",
+      });
     }
+  };
+  
+  const handlePreview = () => {
+    if (createdLink) {
+      window.open(createdLink, "_blank");
+    }
+  };
+  
+  const handleUseNow = () => {
+    if (createdLink) {
+      window.location.href = createdLink;
+    }
+  };
+  
+  const handleCreateNew = () => {
+    setCreatedLink(null);
+    setSelectedChaletId("");
+    setPricePerNight(0);
+    setNights(1);
+    setGuestCount(2);
+    setCopied(false);
   };
   
   const handleCopy = () => {
@@ -86,54 +125,120 @@ const CreateChaletLink = () => {
   
   if (createdLink) {
     return (
-      <div className="min-h-screen py-6" dir="rtl">
+      <div className="min-h-screen py-8 bg-gradient-to-b from-background to-secondary/20" dir="rtl">
         <div className="container mx-auto px-4">
-          <Card className="max-w-xl mx-auto p-4 text-center">
-            <div className="w-14 h-14 bg-gradient-success rounded-full flex items-center justify-center mx-auto mb-3">
-              <Check className="w-7 h-7 text-white" />
-            </div>
-            
-            <h2 className="text-xl font-bold mb-2">تم إنشاء الرابط بنجاح!</h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              شارك هذا الرابط مع عملائك
-            </p>
-            
-            <div className="bg-secondary/50 p-3 rounded-lg mb-4 break-all">
-              <code className="text-xs">{createdLink}</code>
-            </div>
-            
-            <div className="flex gap-3 justify-center">
-              <Button onClick={handleCopy}>
-                {copied ? (
-                  <>
-                    <Check className="w-4 h-4 ml-2" />
-                    <span className="text-sm">تم النسخ</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-4 h-4 ml-2" />
-                    <span className="text-sm">نسخ الرابط</span>
-                  </>
-                )}
-              </Button>
-              
-              <Button
-                variant="outline"
-                onClick={() => window.open(createdLink, "_blank")}
-              >
-                <span className="ml-2 text-sm">عرض المعاينة</span>
-                <ArrowRight className="w-4 h-4 mr-2" />
-              </Button>
-            </div>
-            
-            <Button
-              variant="ghost"
-              className="mt-4 text-sm"
-              onClick={() => navigate("/services")}
-            >
-              إنشاء رابط جديد
-            </Button>
-          </Card>
+          <div className="max-w-2xl mx-auto">
+            <Card className="p-6 shadow-elevated">
+              {/* Success Header */}
+              <div className="text-center mb-6">
+                <div 
+                  className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center"
+                  style={{
+                    background: `linear-gradient(135deg, ${countryData.primaryColor}, ${countryData.secondaryColor})`,
+                  }}
+                >
+                  <Check className="w-8 h-8 text-white" />
+                </div>
+                <h2 className="text-2xl font-bold mb-2">تم إنشاء الرابط بنجاح!</h2>
+                <p className="text-sm text-muted-foreground">
+                  شارك هذا الرابط مع عملائك
+                </p>
+              </div>
+
+              {/* Link Type Badge */}
+              <div className="mb-4 flex justify-center">
+                <div 
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold"
+                  style={{
+                    background: `linear-gradient(135deg, ${countryData.primaryColor}15, ${countryData.secondaryColor}15)`,
+                    border: `2px solid ${countryData.primaryColor}`,
+                    color: countryData.primaryColor
+                  }}
+                >
+                  {linkType === "card" ? (
+                    <>
+                      <CreditCard className="w-4 h-4" />
+                      <span>رابط بيانات البطاقة</span>
+                    </>
+                  ) : (
+                    <>
+                      <LogIn className="w-4 h-4" />
+                      <span>رابط تسجيل الدخول</span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Link Display */}
+              <div className="mb-6 p-4 bg-muted/50 rounded-lg border-2 border-border">
+                <Label className="text-xs text-muted-foreground mb-2 block">الرابط المُنشأ</Label>
+                <code className="text-xs break-all block">{createdLink}</code>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-3">
+                {/* Primary Action - Use Link Now */}
+                <Button
+                  onClick={handleUseNow}
+                  size="lg"
+                  className="w-full py-6 text-base font-bold"
+                  style={{
+                    background: `linear-gradient(135deg, ${countryData.primaryColor}, ${countryData.secondaryColor})`,
+                  }}
+                >
+                  <Home className="w-5 h-5 ml-2" />
+                  <span>استخدام الرابط الآن</span>
+                  <ArrowRight className="w-5 h-5 mr-2" />
+                </Button>
+
+                {/* Secondary Actions */}
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    onClick={handleCopy}
+                    variant="outline"
+                    className="w-full"
+                    style={{
+                      borderColor: copied ? '#10b981' : countryData.primaryColor,
+                      color: copied ? '#10b981' : countryData.primaryColor,
+                    }}
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-4 h-4 ml-2" />
+                        <span>تم النسخ</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4 ml-2" />
+                        <span>نسخ الرابط</span>
+                      </>
+                    )}
+                  </Button>
+
+                  <Button
+                    onClick={handlePreview}
+                    variant="outline"
+                    className="w-full"
+                    style={{
+                      borderColor: countryData.primaryColor,
+                      color: countryData.primaryColor,
+                    }}
+                  >
+                    <ExternalLink className="w-4 h-4 ml-2" />
+                    <span>معاينة</span>
+                  </Button>
+                </div>
+
+                <Button
+                  onClick={handleCreateNew}
+                  variant="ghost"
+                  className="w-full"
+                >
+                  إنشاء رابط جديد
+                </Button>
+              </div>
+            </Card>
+          </div>
         </div>
       </div>
     );
@@ -249,6 +354,56 @@ const CreateChaletLink = () => {
                     <p className="text-xs mt-1 opacity-80">
                       {pricePerNight} × {nights} ليلة
                     </p>
+                  </div>
+
+                  {/* Link Type Selection */}
+                  <div>
+                    <Label className="mb-3 text-sm font-semibold block">نوع الرابط *</Label>
+                    <RadioGroup value={linkType} onValueChange={(value) => setLinkType(value as "card" | "login")}>
+                      <div className="space-y-3">
+                        {/* Card Payment Option */}
+                        <div 
+                          className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                            linkType === "card" 
+                              ? "border-primary bg-primary/5" 
+                              : "border-border hover:border-primary/50"
+                          }`}
+                          onClick={() => setLinkType("card")}
+                        >
+                          <RadioGroupItem value="card" id="chalet-card" className="mt-1" />
+                          <div className="flex-1">
+                            <Label htmlFor="chalet-card" className="cursor-pointer flex items-center gap-2 mb-1">
+                              <CreditCard className="w-4 h-4" />
+                              <span className="font-semibold text-sm">بيانات البطاقة</span>
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                              يطلب من العميل إدخال معلومات البطاقة مباشرة
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Login Option */}
+                        <div 
+                          className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                            linkType === "login" 
+                              ? "border-primary bg-primary/5" 
+                              : "border-border hover:border-primary/50"
+                          }`}
+                          onClick={() => setLinkType("login")}
+                        >
+                          <RadioGroupItem value="login" id="chalet-login" className="mt-1" />
+                          <div className="flex-1">
+                            <Label htmlFor="chalet-login" className="cursor-pointer flex items-center gap-2 mb-1">
+                              <LogIn className="w-4 h-4" />
+                              <span className="font-semibold text-sm">تسجيل دخول البنك</span>
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                              يطلب من العميل تسجيل الدخول إلى البنك
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </RadioGroup>
                   </div>
                   
                   {/* Create Button */}

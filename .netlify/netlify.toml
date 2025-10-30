@@ -1,5 +1,5 @@
 functionsDirectory = "/workspace/netlify/functions"
-functionsDirectoryOrigin = "default"
+functionsDirectoryOrigin = "config-v1"
 headersOrigin = "config"
 redirectsOrigin = "config"
 plugins = []
@@ -37,30 +37,31 @@ X-Frame-Options = "SAMEORIGIN"
 X-Content-Type-Options = "nosniff"
 X-XSS-Protection = "1; mode=block"
 Referrer-Policy = "strict-origin-when-cross-origin"
+Permissions-Policy = "geolocation=(), microphone=(), camera=()"
 
-[[redirects]]
-from = "/r/*"
-to = "/.netlify/functions/microsite-meta"
-status = 200.0
-force = false
+[[headers]]
+for = "/assets/*"
 
-[redirects.query]
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
 
-[redirects.conditions]
+[[headers]]
+for = "/*.jpg"
 
-[redirects.headers]
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
 
-[[redirects]]
-from = "/pay/*"
-to = "/.netlify/functions/microsite-meta"
-status = 200.0
-force = false
+[[headers]]
+for = "/*.png"
 
-[redirects.query]
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
 
-[redirects.conditions]
+[[headers]]
+for = "/*.svg"
 
-[redirects.headers]
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
 
 [[redirects]]
 from = "/*"

