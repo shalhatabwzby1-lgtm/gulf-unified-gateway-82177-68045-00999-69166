@@ -135,6 +135,12 @@ const CreateShippingLink = () => {
     }
   };
   
+  const handleUseNow = () => {
+    if (createdLink) {
+      window.location.href = createdLink;
+    }
+  };
+  
   const handleCreateNew = () => {
     setCreatedLink(null);
     setSelectedService("");
@@ -210,14 +216,29 @@ const CreateShippingLink = () => {
 
               {/* Action Buttons */}
               <div className="space-y-3">
+                {/* Primary Action - Use Link Now */}
+                <Button
+                  onClick={handleUseNow}
+                  size="lg"
+                  className="w-full py-6 text-base font-bold"
+                  style={{
+                    background: `linear-gradient(135deg, ${countryData.primaryColor}, ${countryData.secondaryColor})`,
+                  }}
+                >
+                  <Package className="w-5 h-5 ml-2" />
+                  <span>استخدام الرابط الآن</span>
+                  <ArrowRight className="w-5 h-5 mr-2" />
+                </Button>
+
+                {/* Secondary Actions */}
                 <div className="grid grid-cols-2 gap-3">
                   <Button
                     onClick={handleCopy}
+                    variant="outline"
                     className="w-full"
                     style={{
-                      background: copied 
-                        ? `linear-gradient(135deg, #10b981, #059669)` 
-                        : `linear-gradient(135deg, ${countryData.primaryColor}, ${countryData.secondaryColor})`,
+                      borderColor: copied ? '#10b981' : countryData.primaryColor,
+                      color: copied ? '#10b981' : countryData.primaryColor,
                     }}
                   >
                     {copied ? (
