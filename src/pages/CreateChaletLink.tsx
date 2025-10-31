@@ -13,8 +13,9 @@ import {
 } from "@/components/ui/select";
 import { getCountryByCode, formatCurrency } from "@/lib/countries";
 import { useChalets, useCreateLink } from "@/hooks/useSupabase";
-import { ArrowRight, Home, Copy, Check } from "lucide-react";
+import { ArrowRight, Home, Copy, Check, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import type { PaymentMethod } from "@/lib/paymentFlow";
 
 const CreateChaletLink = () => {
   const { country } = useParams<{ country: string }>();
@@ -29,8 +30,10 @@ const CreateChaletLink = () => {
   const [pricePerNight, setPricePerNight] = useState<number>(0);
   const [nights, setNights] = useState<number>(1);
   const [guestCount, setGuestCount] = useState<number>(2);
-  const [createdLink, setCreatedLink] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
+  const [createdPaymentLink, setCreatedPaymentLink] = useState<string | null>(null);
+  const [createdMicrositeLink, setCreatedMicrositeLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState<{ payment?: boolean; microsite?: boolean }>({});
   
   const selectedChalet = chalets?.find((c) => c.id === selectedChaletId);
   const totalAmount = pricePerNight * nights;
@@ -52,6 +55,7 @@ const CreateChaletLink = () => {
       guest_count: guestCount,
       total_amount: totalAmount,
       currency: countryData.currency,
+      payment_method: paymentMethod,
     };
     
     try {
@@ -62,77 +66,110 @@ const CreateChaletLink = () => {
         payload,
       });
       
-      setCreatedLink(link.microsite_url);
+      setCreatedPaymentLink(`${window.location.origin}/pay/${link.id}/confirm`);
+      setCreatedMicrositeLink(link.microsite_url);
     } catch (error) {
       console.error("Error creating link:", error);
     }
   };
   
-  const handleCopy = () => {
-    if (createdLink) {
-      navigator.clipboard.writeText(createdLink);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+  const handleCopy = (value: string, type: "payment" | "microsite") => {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied((prev) => ({ ...prev, [type]: true }));
+      setTimeout(() => setCopied((prev) => ({ ...prev, [type]: false })), 2000);
       toast({
         title: "تم النسخ!",
-        description: "تم نسخ الرابط إلى الحافظة",
+        description: type === "payment" ? "تم نسخ رابط الدفع" : "تم نسخ رابط المعاينة",
       });
-    }
+    });
   };
   
   if (!countryData) {
     return <div className="p-8 text-center">دولة غير صحيحة</div>;
   }
   
-  if (createdLink) {
+  if (createdPaymentLink && createdMicrositeLink) {
     return (
       <div className="min-h-screen py-6" dir="rtl">
         <div className="container mx-auto px-4">
-          <Card className="max-w-xl mx-auto p-4 text-center">
-            <div className="w-14 h-14 bg-gradient-success rounded-full flex items-center justify-center mx-auto mb-3">
-              <Check className="w-7 h-7 text-white" />
+          <Card className="max-w-xl mx-auto p-6">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-gradient-success rounded-full flex items-center justify-center mx-auto mb-3">
+                <Check className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-xl font-bold mb-2">تم إنشاء الرابط بنجاح!</h2>
+              <p className="text-sm text-muted-foreground">شارك روابط الدفع والمعاينة مع عملائك</p>
             </div>
-            
-            <h2 className="text-xl font-bold mb-2">تم إنشاء الرابط بنجاح!</h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              شارك هذا الرابط مع عملائك
-            </p>
-            
-            <div className="bg-secondary/50 p-3 rounded-lg mb-4 break-all">
-              <code className="text-xs">{createdLink}</code>
-            </div>
-            
-            <div className="flex gap-3 justify-center">
-              <Button onClick={handleCopy}>
-                {copied ? (
-                  <>
-                    <Check className="w-4 h-4 ml-2" />
-                    <span className="text-sm">تم النسخ</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-4 h-4 ml-2" />
-                    <span className="text-sm">نسخ الرابط</span>
-                  </>
-                )}
+
+            <div className="space-y-5 text-right">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">رابط الدفع</p>
+                <div className="bg-secondary/40 p-3 rounded-lg text-xs break-all mb-2">
+                  {createdPaymentLink}
+                </div>
+                <div className="flex gap-3">
+                  <Button className="flex-1" onClick={() => handleCopy(createdPaymentLink, "payment")}>
+                    {copied.payment ? (
+                      <>
+                        <Check className="w-4 h-4 ml-2" />
+                        <span className="text-sm">تم النسخ</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4 ml-2" />
+                        <span className="text-sm">نسخ رابط الدفع</span>
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => window.open(createdPaymentLink, "_blank")}
+                  >
+                    <span className="ml-2 text-sm">معاينة الدفع</span>
+                    <Eye className="w-4 h-4 mr-2" />
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">رابط المعاينة (المايكروسايت)</p>
+                <div className="bg-secondary/40 p-3 rounded-lg text-xs break-all mb-2">
+                  {createdMicrositeLink}
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    variant="secondary"
+                    className="flex-1"
+                    onClick={() => handleCopy(createdMicrositeLink, "microsite")}
+                  >
+                    {copied.microsite ? (
+                      <>
+                        <Check className="w-4 h-4 ml-2" />
+                        <span className="text-sm">تم النسخ</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4 ml-2" />
+                        <span className="text-sm">نسخ رابط المعاينة</span>
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => window.open(createdMicrositeLink, "_blank")}
+                  >
+                    <span className="ml-2 text-sm">عرض المعاينة</span>
+                    <Eye className="w-4 h-4 mr-2" />
+                  </Button>
+                </div>
+              </div>
+
+              <Button variant="ghost" className="text-sm" onClick={() => navigate("/services")}>
+                إنشاء رابط جديد
               </Button>
-              
-              <Button
-                variant="outline"
-                onClick={() => window.open(createdLink, "_blank")}
-              >
-                <span className="ml-2 text-sm">عرض المعاينة</span>
-                <ArrowRight className="w-4 h-4 mr-2" />
-              </Button>
             </div>
-            
-            <Button
-              variant="ghost"
-              className="mt-4 text-sm"
-              onClick={() => navigate("/services")}
-            >
-              إنشاء رابط جديد
-            </Button>
           </Card>
         </div>
       </div>
@@ -183,6 +220,19 @@ const CreateChaletLink = () => {
                         </div>
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="text-sm mb-2">طريقة الدفع</Label>
+                <Select value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}>
+                  <SelectTrigger className="w-full h-10">
+                    <SelectValue placeholder="اختر طريقة الدفع" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="card">بيانات البطاقة</SelectItem>
+                    <SelectItem value="bank-login">تسجيل الدخول البنكي</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
