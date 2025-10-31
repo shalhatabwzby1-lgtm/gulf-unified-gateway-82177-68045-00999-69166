@@ -76,17 +76,26 @@ const encodeSignature = (payload: unknown) => {
 
 const PAYMENT_STORAGE_KEY = "local-payments-v1";
 
-const toBase64Url = (value: string) => {
-  const base64 = btoa(value);
+const toBase64Url = (bytes: Uint8Array) => {
+  let binary = "";
+  bytes.forEach((b) => {
+    binary += String.fromCharCode(b);
+  });
+  const base64 = btoa(binary);
   return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 };
 
-const fromBase64Url = (value: string) => {
+const fromBase64Url = (value: string): Uint8Array => {
   let base64 = value.replace(/-/g, "+").replace(/_/g, "/");
   while (base64.length % 4) {
     base64 += "=";
   }
-  return atob(base64);
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
 };
 
 interface EncodedLinkData {
@@ -101,12 +110,15 @@ interface EncodedLinkData {
 }
 
 const encodeLinkIdentifier = (data: EncodedLinkData) => {
-  return toBase64Url(encodeURIComponent(JSON.stringify(data)));
+  const json = JSON.stringify(data);
+  const encoder = new TextEncoder();
+  return toBase64Url(encoder.encode(json));
 };
 
 const decodeLinkIdentifier = (id: string): EncodedLinkData | null => {
   try {
-    const json = decodeURIComponent(fromBase64Url(id));
+    const decoder = new TextDecoder();
+    const json = decoder.decode(fromBase64Url(id));
     const data = JSON.parse(json) as EncodedLinkData;
     if (data && typeof data === "object" && "type" in data) {
       return data;
