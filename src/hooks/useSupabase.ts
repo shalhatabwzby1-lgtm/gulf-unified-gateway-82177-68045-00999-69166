@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { CHALETS, SHIPPING_CARRIERS } from "@/lib/data";
+import { findLinkById, saveLink } from "@/lib/localLinks";
 
 // Types from database
 export interface Chalet {
@@ -55,23 +56,144 @@ export interface Payment {
   created_at: string;
 }
 
+const isBrowser = typeof window !== "undefined";
+
+const generateId = () => {
+  if (isBrowser && typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `id-${Math.random().toString(36).slice(2, 10)}`;
+};
+
+const encodeSignature = (payload: unknown) => {
+  try {
+    return btoa(encodeURIComponent(JSON.stringify(payload)));
+  } catch (error) {
+    console.error("Failed to encode signature", error);
+    return "";
+  }
+};
+
+const PAYMENT_STORAGE_KEY = "local-payments-v1";
+
+const toBase64Url = (value: string) => {
+  const base64 = btoa(value);
+  return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+};
+
+const fromBase64Url = (value: string) => {
+  let base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  while (base64.length % 4) {
+    base64 += "=";
+  }
+  return atob(base64);
+};
+
+interface EncodedLinkData {
+  seed: string;
+  type: string;
+  country_code: string;
+  provider_id: string | null;
+  payload: any;
+  status: string;
+  created_at: string;
+  version: number;
+}
+
+const encodeLinkIdentifier = (data: EncodedLinkData) => {
+  return toBase64Url(encodeURIComponent(JSON.stringify(data)));
+};
+
+const decodeLinkIdentifier = (id: string): EncodedLinkData | null => {
+  try {
+    const json = decodeURIComponent(fromBase64Url(id));
+    const data = JSON.parse(json) as EncodedLinkData;
+    if (data && typeof data === "object" && "type" in data) {
+      return data;
+    }
+    return null;
+  } catch (error) {
+    return null;
+  }
+};
+
+const buildLink = (id: string, data: EncodedLinkData): Link => {
+  const origin = isBrowser ? window.location.origin : "";
+  return {
+    id,
+    type: data.type,
+    country_code: data.country_code,
+    provider_id: data.provider_id,
+    payload: data.payload,
+    microsite_url: `${origin}/r/${data.country_code}/${data.type}/${id}`,
+    payment_url: `${origin}/pay/${id}`,
+    signature: encodeSignature(data.payload),
+    status: data.status,
+    created_at: data.created_at,
+  };
+};
+
+const getStoredPayments = (): Payment[] => {
+  if (!isBrowser) return [];
+  const raw = window.localStorage.getItem(PAYMENT_STORAGE_KEY);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as Payment[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error("Failed to parse stored payments", error);
+    window.localStorage.removeItem(PAYMENT_STORAGE_KEY);
+    return [];
+  }
+};
+
+const savePayments = (payments: Payment[]) => {
+  if (!isBrowser) return;
+  try {
+    window.localStorage.setItem(PAYMENT_STORAGE_KEY, JSON.stringify(payments));
+  } catch (error) {
+    console.error("Failed to persist payments", error);
+  }
+};
+
+const upsertPayment = (payment: Payment) => {
+  const payments = getStoredPayments();
+  const existingIndex = payments.findIndex((item) => item.id === payment.id);
+  if (existingIndex >= 0) {
+    payments[existingIndex] = payment;
+  } else {
+    payments.push(payment);
+  }
+  savePayments(payments);
+  return payment;
+};
+
+const findPaymentById = (paymentId: string): Payment | undefined => {
+  return getStoredPayments().find((payment) => payment.id === paymentId);
+};
+
 // Fetch chalets by country
 export const useChalets = (countryCode?: string) => {
   return useQuery({
     queryKey: ["chalets", countryCode],
     queryFn: async () => {
-      let query = (supabase as any).from("chalets").select("*");
-      
-      if (countryCode) {
-        query = query.eq("country_code", countryCode);
-      }
-      
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      return data as Chalet[];
+      const code = countryCode?.toUpperCase();
+      const filtered = code ? CHALETS.filter((chalet) => chalet.countryCode === code) : CHALETS;
+      return filtered.map((chalet) => ({
+        id: chalet.id,
+        name: chalet.name,
+        country_code: chalet.countryCode,
+        city: chalet.city,
+        address: chalet.address,
+        default_price: chalet.defaultPrice,
+        images: chalet.images,
+        provider_id: chalet.providerId || null,
+        verified: chalet.verified,
+        amenities: chalet.amenities || [],
+        capacity: chalet.capacity || 0,
+      })) as Chalet[];
     },
-    enabled: !!countryCode,
+    enabled: true,
   });
 };
 
@@ -80,18 +202,19 @@ export const useShippingCarriers = (countryCode?: string) => {
   return useQuery({
     queryKey: ["carriers", countryCode],
     queryFn: async () => {
-      let query = (supabase as any).from("shipping_carriers").select("*");
-      
-      if (countryCode) {
-        query = query.eq("country_code", countryCode);
-      }
-      
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      return data as ShippingCarrier[];
+      const code = countryCode?.toUpperCase();
+      const filtered = code ? SHIPPING_CARRIERS.filter((carrier) => carrier.countryCode === code) : SHIPPING_CARRIERS;
+      return filtered.map((carrier) => ({
+        id: carrier.id,
+        name: carrier.name,
+        country_code: carrier.countryCode,
+        services: carrier.services,
+        contact: carrier.contact,
+        website: carrier.website,
+        logo_path: carrier.logoPath,
+      })) as ShippingCarrier[];
     },
-    enabled: !!countryCode,
+    enabled: true,
   });
 };
 
@@ -107,32 +230,22 @@ export const useCreateLink = () => {
       provider_id?: string;
       payload: any;
     }) => {
-      const linkId = crypto.randomUUID();
-      const micrositeUrl = `${window.location.origin}/r/${linkData.country_code}/${linkData.type}/${linkId}`;
-      const paymentUrl = `${window.location.origin}/pay/${linkId}`;
-      
-      // Simple signature (in production, use HMAC)
-      // Use encodeURIComponent to handle Arabic and other Unicode characters
-      const signature = btoa(encodeURIComponent(JSON.stringify(linkData.payload)));
-      
-      const { data, error } = await (supabase as any)
-        .from("links")
-        .insert({
-          id: linkId,
-          type: linkData.type,
-          country_code: linkData.country_code,
-          provider_id: linkData.provider_id,
-          payload: linkData.payload,
-          microsite_url: micrositeUrl,
-          payment_url: paymentUrl,
-          signature,
-          status: "active",
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data as Link;
+      const encodedPayload: EncodedLinkData = {
+        seed: generateId(),
+        type: linkData.type,
+        country_code: linkData.country_code,
+        provider_id: linkData.provider_id ?? null,
+        payload: linkData.payload,
+        status: "active",
+        created_at: new Date().toISOString(),
+        version: 1,
+      };
+
+      const linkId = encodeLinkIdentifier(encodedPayload);
+      const link = buildLink(linkId, encodedPayload);
+
+      saveLink(link);
+      return link;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["links"] });
@@ -156,16 +269,20 @@ export const useLink = (linkId?: string) => {
   return useQuery({
     queryKey: ["link", linkId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("links")
-        .select("*")
-        .eq("id", linkId!)
-        .single();
-      
-      if (error) throw error;
-      return data as Link;
+      if (!linkId) {
+        throw new Error("Link ID is required");
+      }
+      const decoded = decodeLinkIdentifier(linkId);
+      if (decoded) {
+        const link = buildLink(linkId, decoded);
+        saveLink(link);
+        return link;
+      }
+      const link = findLinkById(linkId);
+      if (link) return link;
+      throw new Error("Link not found");
     },
-    enabled: !!linkId,
+    enabled: !!linkId && isBrowser,
   });
 };
 
@@ -181,20 +298,23 @@ export const useCreatePayment = () => {
     }) => {
       // Generate OTP (4 digits)
       const otp = Math.floor(1000 + Math.random() * 9000).toString();
-      
-      const { data, error } = await (supabase as any)
-        .from("payments")
-        .insert({
-          ...paymentData,
-          otp,
-          status: "pending",
-          attempts: 0,
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data as Payment;
+      const payment: Payment = {
+        id: generateId(),
+        link_id: paymentData.link_id,
+        amount: paymentData.amount,
+        currency: paymentData.currency,
+        status: "pending",
+        otp,
+        attempts: 0,
+        locked_until: null,
+        receipt_url: null,
+        cardholder_name: null,
+        last_four: null,
+        created_at: new Date().toISOString(),
+      };
+
+      upsertPayment(payment);
+      return payment;
     },
     onError: (error: any) => {
       toast({
@@ -211,16 +331,14 @@ export const usePayment = (paymentId?: string) => {
   return useQuery({
     queryKey: ["payment", paymentId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("payments")
-        .select("*")
-        .eq("id", paymentId!)
-        .single();
-      
-      if (error) throw error;
-      return data as Payment;
+      if (!paymentId) {
+        throw new Error("Payment ID is required");
+      }
+      const payment = findPaymentById(paymentId);
+      if (payment) return payment;
+      throw new Error("Payment not found");
     },
-    enabled: !!paymentId,
+    enabled: !!paymentId && isBrowser,
     refetchInterval: 2000, // Refresh every 2 seconds for OTP status
   });
 };
@@ -238,15 +356,18 @@ export const useUpdatePayment = () => {
       paymentId: string;
       updates: Partial<Payment>;
     }) => {
-      const { data, error } = await (supabase as any)
-        .from("payments")
-        .update(updates)
-        .eq("id", paymentId)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data as Payment;
+      const existing = findPaymentById(paymentId);
+      if (!existing) {
+        throw new Error("Payment not found");
+      }
+
+      const updated: Payment = {
+        ...existing,
+        ...updates,
+      };
+
+      upsertPayment(updated);
+      return updated;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payment"] });
